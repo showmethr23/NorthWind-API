@@ -1,0 +1,121 @@
+﻿@page
+@{
+    ViewData["Title"] = "ShowProductsViaApi";
+}
+<h1>Show Products Via Api</h1>
+<div id="pdetail" class="pinfo"></div>
+<form id="form1">
+    <div>
+        <table style="width:90%">
+            <tr>
+                <td>Products from Northwind Database</td>
+            </tr>
+            <tr>
+                <td><div id="dstatus"></div></td>
+            </tr>
+            <tr>
+                <td>
+                    <table id="tproducts" align="center" style="border:1px solid green"></table>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+
+@section Scripts{
+    <script>
+        $(function () {
+            loadProductData();
+
+            $(document).keydown(function (ev) {
+                var keycode = ev.which || ev.keyCode;
+                //alert(keycode); // 27 for escape key
+                if (keycode == 27)
+                    $("#pdetail").hide();
+            });
+        });
+
+        function loadProductData() {
+            $.ajax({
+                type: "GET",
+                url: "api/nwproducts",
+                contentType: "application/json",
+                dataType: "json",
+                data: "{'prodid': 1}",
+                success: function (res) { getProductsSucceeded(res) },
+                error: function (res) { getProductsFailed(res) },
+                timeout: 5000
+            });
+        }
+
+        function getProductsSucceeded(res) {
+            // res is the array of json objects, we need to loop through it
+            // and generate the html table
+            var out1 = "";
+            var toprow = "<tr>";
+            var count = 0;
+            $.each(res[0], function (key, val) {
+                if (key.toUpperCase() != "PRODUCTID")
+                    toprow += "<th>" + key + "</th>";
+            });
+            toprow += "</tr>";
+
+            $("#tproducts").append(toprow);
+            // now obtain all the values for the data
+            $.each(res, function (key, val) {
+                var row = "<tr>";
+                var count = 0;
+                $.each(val, function (key, value) {
+                    if (key.toUpperCase() == "PRODUCTID")
+                        row = row.substring(0, 3) + " data-pid='" + value + "'>" +
+                            row.substring(4);
+                    else
+                        row += "<td>" + value + "</td>";
+                });
+                row += "</tr>";
+                $("#tproducts").append(row);
+            });
+
+        $("table#tproducts tr:even").addClass("even");
+        $("table#tproducts tr:odd").addClass("odd");
+        $("table#tproducts th").addClass("tableHeading");
+        $("table#tproducts tr").hover(function () {
+            $(this).addClass("highlight")
+        },
+            function () {
+                $(this).removeClass("highlight");
+
+            });
+        //------------get product detail if some one clicks on a row------
+        $("table#tproducts td").click(function (e) {
+            var pid = $(this).closest('tr').attr("data-pid");
+            var xpos = e.pageX;
+            var ypos = e.pageY;
+            // make an ajax call to the getproductdetail function in the service
+            $.ajax({
+                type: "GET",
+                url: "api/nwproducts/" + pid,
+                data: "{'prodid':" + pid + "}",
+                contentType: "application/json",
+                dataType: "json",
+                success: function (res) { getProductDetailSucceeded(res, xpos, ypos) 
+                },
+                error: function (res) {
+                    productDetailFailure(res);
+                }
+            });
+            });
+        }
+        function getProductDetailSucceeded(res, xpos, ypos) {
+        $("#pdetail").html("StockLevel:" + res.unitsInStock + " QPU " +
+        res.quantityPerUnit + " Discont.?" + res.discontinued);
+        $("#pdetail").css({ 'top': ypos + 5, 'left': xpos, 'display': 'block' });
+        }
+        function productDetailFailure(res) {
+        alert(res.statusText);
+        }
+        function getProductsFailed(res) {
+        alert(res.statusText);
+        }
+    </script>
+}
